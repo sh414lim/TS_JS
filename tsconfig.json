@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES5", // 문법 체계
+    "module": "CommonJS", //
+    "alwaysStrict": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true,
+    "sourceMap": true, // 개발환경 서버 환경 일치
+    "downlevelIteration": true
+  }
+}

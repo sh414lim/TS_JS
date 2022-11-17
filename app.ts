@@ -1,23 +1,49 @@
-const container = document.getElementById("root");
+type Store = {
+  currentPage: number;
+  feeds: NewsFeed[];
+};
 
-const ajax = new XMLHttpRequest(); // 출력결과 반환
+type News = {
+  id: number;
+  url: string;
+  user: string;
+  title: string;
+  time_ago: string;
+  content: string;
+};
+
+type NewsFeed = News & {
+  comments_count: number;
+  points: number;
+  read?: boolean;
+};
+
+type NewsDetail = News & {
+  comments: NewsComment[];
+};
+
+type NewsComment = News & {
+  comments: NewsComment[];
+  level: number;
+};
+
+const container: HTMLElement | null = document.getElementById("root");
+const ajax: XMLHttpRequest = new XMLHttpRequest();
 const NEWS_URL = "https://api.hnpwa.com/v0/news/1.json";
 const CONTENT_URL = "https://api.hnpwa.com/v0/item/@id.json";
-const content = document.createElement("div");
-
-const store = {
+const store: Store = {
   currentPage: 1,
   feeds: [],
 };
 
-const getDate = (url) => {
+function getData<AjaxResponse>(url: string): AjaxResponse {
   ajax.open("GET", url, false);
   ajax.send();
 
   return JSON.parse(ajax.response);
-};
+}
 
-function makeFeeds(feeds) {
+function makeFeeds(feeds: NewsFeed[]): NewsFeed[] {
   for (let i = 0; i < feeds.length; i++) {
     feeds[i].read = false;
   }
@@ -25,43 +51,47 @@ function makeFeeds(feeds) {
   return feeds;
 }
 
-function newsFeed() {
-  let newsFeed = store.feeds;
-  const newsList = [];
+function updateView(html: string): void {
+  if (container) {
+    container.innerHTML = html;
+  } else {
+    console.error("최상위 컨테이너가 없어 UI를 진행하지 못합니다.");
+  }
+}
 
-  let templage = `
-  <div class="bg-gray-600 min-h-screen">
-    <div class="bg-white text-xl">
-      <div class="mx-auto px-4">
-        <div class="flex justify-between items-center py-6">
-          <div class="flex justify-start">
-            <h1 class="font-extrabold">Hacker News</h1>
-          </div>
-          <div class="items-center justify-end">
-            <a href="#/page/{{__prev_page__}}" class="text-gray-500">
-              Previous
-            </a>
-            <a href="#/page/{{__next_page__}}" class="text-gray-500 ml-4">
-              Next
-            </a>
-          </div>
-        </div> 
+function newsFeed(): void {
+  let newsFeed: NewsFeed[] = store.feeds;
+  const newsList = [];
+  let template = `
+    <div class="bg-gray-600 min-h-screen">
+      <div class="bg-white text-xl">
+        <div class="mx-auto px-4">
+          <div class="flex justify-between items-center py-6">
+            <div class="flex justify-start">
+              <h1 class="font-extrabold">Hacker News</h1>
+            </div>
+            <div class="items-center justify-end">
+              <a href="#/page/{{__prev_page__}}" class="text-gray-500">
+                Previous
+              </a>
+              <a href="#/page/{{__next_page__}}" class="text-gray-500 ml-4">
+                Next
+              </a>
+            </div>
+          </div> 
+        </div>
+      </div>
+      <div class="p-4 text-2xl text-gray-700">
+        {{__news_feed__}}        
       </div>
     </div>
-    <div class="p-4 text-2xl text-gray-700">
-      {{__news_feed__}}        
-    </div>
-  </div>
-`;
+  `;
+
   if (newsFeed.length === 0) {
-    newsFeed = store.feeds = makeFeeds(getDate(NEWS_URL));
+    newsFeed = store.feeds = makeFeeds(getData<NewsFeed[]>(NEWS_URL));
   }
 
   for (let i = (store.currentPage - 1) * 10; i < store.currentPage * 10; i++) {
-    const title = newsFeed[i].title;
-    const desc = newsFeed[i].comments_count;
-    const id = newsFeed[i].id;
-
     newsList.push(`
       <div class="p-6 ${
         newsFeed[i].read ? "bg-red-500" : "bg-white"
@@ -87,92 +117,86 @@ function newsFeed() {
     `);
   }
 
-  templage = templage.replace("{{__news_feed__}}", newsList.join(""));
-  templage = templage.replace(
-    "{{__next_page__}}",
-    store.currentPage > 1 ? store.currentPage - 1 : 1
-  );
-  templage = templage.replace(
+  template = template.replace("{{__news_feed__}}", newsList.join(""));
+  template = template.replace(
     "{{__prev_page__}}",
-    store.currentPage < 3 ? store.currentPage + 1 : 3
+    String(store.currentPage > 1 ? store.currentPage - 1 : 1)
+  );
+  template = template.replace(
+    "{{__next_page__}}",
+    String(store.currentPage + 1)
   );
 
-  container.innerHTML = templage; // 하나의 문자열 조인
+  updateView(template);
 }
 
-function newsDetail() {
+function newsDetail(): void {
   const id = location.hash.substr(7);
-  const url = CONTENT_URL.replace("@id", id);
-  const newsContent = getDate(url);
-  const subTitle = newsContent.title;
-
+  const newsContent = getData<NewsDetail>(CONTENT_URL.replace("@id", id));
   let template = `
-  <div class="bg-gray-600 min-h-screen pb-8">
-    <div class="bg-white text-xl">
-      <div class="mx-auto px-4">
-        <div class="flex justify-between items-center py-6">
-          <div class="flex justify-start">
-            <h1 class="font-extrabold">Hacker News</h1>
-          </div>
-          <div class="items-center justify-end">
-            <a href="#/page/${store.currentPage}" class="text-gray-500">
-              <i class="fa fa-times"></i>
-            </a>
+    <div class="bg-gray-600 min-h-screen pb-8">
+      <div class="bg-white text-xl">
+        <div class="mx-auto px-4">
+          <div class="flex justify-between items-center py-6">
+            <div class="flex justify-start">
+              <h1 class="font-extrabold">Hacker News</h1>
+            </div>
+            <div class="items-center justify-end">
+              <a href="#/page/${store.currentPage}" class="text-gray-500">
+                <i class="fa fa-times"></i>
+              </a>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="h-full border rounded-xl bg-white m-6 p-4 ">
-      <h2>${newsContent.title}</h2>
-      <div class="text-gray-400 h-20">
-        ${newsContent.content}
+      <div class="h-full border rounded-xl bg-white m-6 p-4 ">
+        <h2>${newsContent.title}</h2>
+        <div class="text-gray-400 h-20">
+          ${newsContent.content}
+        </div>
+
+        {{__comments__}}
+
       </div>
-
-      {{__comments__}}
-
     </div>
-  </div>
-`;
+  `;
 
   for (let i = 0; i < store.feeds.length; i++) {
-    if (store.feeds[i] === Number(id)) {
+    if (store.feeds[i].id === Number(id)) {
       store.feeds[i].read = true;
       break;
     }
   }
 
-  function makeComment(comments, called = 0) {
-    const commentString = [];
-
-    for (let i = 0; i < comments.length; i++) {
-      commentString.push(`
-        <div style="padding-left: ${called * 40}px;" class="mt-4">
-          <div class="text-gray-400">
-            <i class="fa fa-sort-up mr-2"></i>
-            <strong>${comments[i].user}</strong> ${comments[i].time_ago}
-          </div>
-          <p class="text-gray-700">${comments[i].content}</p>
-        </div>      
-      `);
-
-      if (comments[i].comments.length > 0) {
-        commentString.push(makeComment(comments[i].comments, called + 1));
-      }
-    }
-
-    return commentString.join("");
-  }
-
-  container.innerHTML = template.replace(
-    "{{__comments__}}",
-    makeComment(newsContent.comments)
+  updateView(
+    template.replace("{{__comments__}}", makeComment(newsContent.comments))
   );
 }
+function makeComment(comments: NewsComment[]): string {
+  const commentString = [];
+  const comment: NewsComment = comments[i];
+  for (let i = 0; i < comments.length; i++) {
+    commentString.push(`
+      <div style="padding-left: ${comment.level * 40}px;" class="mt-4">
+        <div class="text-gray-400">
+          <i class="fa fa-sort-up mr-2"></i>
+          <strong>${comment.user}</strong> ${comment.time_ago}
+        </div>
+        <p class="text-gray-700">${comment.content}</p>
+      </div>      
+    `);
 
-function router() {
+    if (comments[i].comments.length > 0) {
+      commentString.push(makeComment(comment.comments, comment.level + 1));
+    }
+  }
+
+  return commentString.join("");
+}
+function router(): void {
   const routePath = location.hash;
-  console.log(routePath);
+
   if (routePath === "") {
     newsFeed();
   } else if (routePath.indexOf("#/page/") >= 0) {

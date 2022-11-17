@@ -18,5 +18,8 @@
   "homepage": "https://github.com/sh414lim/TS_JS#readme",
   "dependencies": {
     "parcel": "^2.8.0"
+  },
+  "devDependencies": {
+    "typescript": "^4.9.3"
   }
 }
